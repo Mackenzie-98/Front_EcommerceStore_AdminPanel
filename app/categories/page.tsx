@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,17 +16,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -38,24 +26,23 @@ import {
 } from "@/components/ui/breadcrumb"
 import { 
   Search, 
-  Filter, 
   MoreHorizontal, 
   Plus, 
   Edit, 
   Trash2, 
   Eye, 
   FolderOpen,
-  ChevronLeft,
+  Tags,
+  Package,
+  TrendingUp,
+  ChevronDown,
   ChevronRight,
-  Loader2,
   RefreshCw
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { CategoryFormModal } from "@/components/categories"
 import { useMemoryBank } from "@/lib/memory-bank/context"
-import { Category } from "@/lib/types"
-import { Loading } from "../../components/ui/loading"
-import { EmptyState } from "../../components/ui/empty-state"
+import { Category, Subcategory } from "@/lib/types"
+import { CategoryFormModal } from "@/components/categories/category-form-modal"
 
 export default function CategoriesPage() {
   const router = useRouter()
@@ -64,122 +51,126 @@ export default function CategoriesPage() {
   // Use memory bank for local development
   const { state: memoryBankState } = useMemoryBank()
   const [categories, setCategories] = useState<Category[]>([])
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<any>(null)
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false)
+  const [currentCategory, setCurrentCategory] = useState<Category | null>(null)
+  const [currentSubcategory, setCurrentSubcategory] = useState<Subcategory | null>(null)
 
   // Simulate API response structure
   const categoriesList = {
     items: categories,
     loading,
     error,
-    pagination: {
-      current_page: 1,
-      total_pages: 1,
-      total_items: categories.length,
-      items_per_page: 10
-    },
-    fetch: () => {
-      setLoading(true)
-      setTimeout(() => {
-        setCategories(memoryBankState.categories)
-        setLoading(false)
-      }, 100)
-    },
     refresh: () => {
       setCategories(memoryBankState.categories)
-    },
-    goToPage: (page: number) => {},
-    filter: (filters: any) => {
-      let filtered = memoryBankState.categories
-             if (filters.search) {
-         filtered = filtered.filter((cat: Category) => 
-           cat.name.toLowerCase().includes(filters.search.toLowerCase())
-         )
-       }
-       if (filters.status && filters.status !== "all") {
-         filtered = filtered.filter((cat: Category) => 
-           cat.is_active === (filters.status === "active")
-         )
-       }
-      setCategories(filtered)
+      setSubcategories(memoryBankState.subcategories)
     }
   }
-  
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  
-  const [categoryModalOpen, setCategoryModalOpen] = useState(false)
-  const [currentCategory, setCurrentCategory] = useState<Category | null>(null)
-  
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
 
-  // Initial data fetch
   useEffect(() => {
-    categoriesList.fetch()
-  }, [])
+    if (memoryBankState.categories) {
+      setCategories(memoryBankState.categories)
+    }
+  }, [memoryBankState.categories])
 
-  // Handle search and filter changes
   useEffect(() => {
-    const filters: any = {}
-    if (searchQuery) filters.search = searchQuery
-    if (statusFilter !== "all") filters.status = statusFilter
-    
-    categoriesList.filter(filters)
-  }, [searchQuery, statusFilter])
+    if (memoryBankState.subcategories) {
+      setSubcategories(memoryBankState.subcategories)
+    }
+  }, [memoryBankState.subcategories])
 
-  // Handle edit category
+  // Handlers
   const handleEditCategory = (category: Category) => {
     setCurrentCategory(category)
+    setCurrentSubcategory(null)
     setCategoryModalOpen(true)
   }
 
-  // Handle new category
+  const handleEditSubcategory = (subcategory: Subcategory) => {
+    setCurrentSubcategory(subcategory)
+    setCurrentCategory(null)
+    setCategoryModalOpen(true)
+  }
+
   const handleNewCategory = () => {
     setCurrentCategory(null)
+    setCurrentSubcategory(null)
     setCategoryModalOpen(true)
   }
 
-  // Handle view category
-  const handleViewCategory = (categoryId: string) => {
-    router.push(`/categories/${categoryId}`)
+  const handleNewSubcategory = (categoryId?: string) => {
+    setCurrentCategory(null)
+    setCurrentSubcategory(null)
+    setCategoryModalOpen(true)
   }
 
-  // Handle delete category
-  const handleDeleteClick = (category: Category) => {
-    setCategoryToDelete(category)
-    setDeleteDialogOpen(true)
-  }
-
-  // Confirm delete category
-  const confirmDelete = async () => {
-    if (!categoryToDelete) return
-    
-    // Simulate delete operation
-    setTimeout(() => {
-      categoriesList.refresh()
-      toast({
-        title: "Category deleted",
-        description: `${categoryToDelete.name} has been deleted successfully`,
-      })
-      setDeleteDialogOpen(false)
-      setCategoryToDelete(null)
-    }, 100)
-  }
-
-  // Handle form submission success
   const handleFormSuccess = () => {
+    categoriesList.refresh()
     setCategoryModalOpen(false)
     setCurrentCategory(null)
-    categoriesList.refresh()
+    setCurrentSubcategory(null)
   }
 
-  // Get parent category name
-  const getParentCategoryName = (parentId: string | undefined) => {
-    if (!parentId) return "-"
+  const handleViewCategory = (categoryId: string) => {
+    router.push(`/products?category=${categoryId}`)
+  }
+
+  const handleDeleteClick = (category: Category) => {
+    toast({
+      title: "Delete Category",
+      description: `Are you sure you want to delete ${category.name}?`,
+    })
+  }
+
+  const handleDeleteSubcategoryClick = (subcategory: Subcategory) => {
+    toast({
+      title: "Delete Subcategory",
+      description: `Are you sure you want to delete ${subcategory.name}?`,
+    })
+  }
+
+  // Get subcategories for a category
+  const getSubcategories = (categoryId: string) => {
+    return subcategories?.filter(sub => sub.category_id === categoryId) || []
+  }
+
+  // Get products for a category or subcategory
+  const getProductsForCategory = (categoryId?: string, subcategoryId?: string) => {
+    if (!memoryBankState.products) return []
     
-    const parent = categoriesList.items.find(c => c.id === parentId)
-    return parent ? parent.name : "-"
+    if (subcategoryId) {
+      return memoryBankState.products.filter(p => p.subcategory_id === subcategoryId)
+    }
+    return memoryBankState.products.filter(p => p.category_id === categoryId)
+  }
+
+  // Toggle category expansion
+  const toggleCategory = (categoryId: string) => {
+    const newExpanded = new Set(expandedCategories)
+    if (newExpanded.has(categoryId)) {
+      newExpanded.delete(categoryId)
+    } else {
+      newExpanded.add(categoryId)
+    }
+    setExpandedCategories(newExpanded)
+  }
+
+  // Calculate stats
+  const categoryStats = {
+    total: categories.length,
+    active: categories.filter(c => c.is_active).length,
+    inactive: categories.filter(c => !c.is_active).length,
+    totalProducts: categories.reduce((sum, c) => sum + c.products_count, 0)
+  }
+
+  const subcategoryStats = {
+    total: subcategories?.length || 0,
+    active: subcategories?.filter(s => s.is_active).length || 0,
+    inactive: subcategories?.filter(s => !s.is_active).length || 0,
+    totalProducts: subcategories?.reduce((sum, s) => sum + s.products_count, 0) || 0
   }
 
   // Handle sync
@@ -213,7 +204,7 @@ export default function CategoriesPage() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-bold tracking-tight">Categories</h2>
-            <p className="text-muted-foreground">Manage product categories and hierarchies</p>
+            <p className="text-muted-foreground">Manage product categories and subcategories for your clothing store</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleSync}>
@@ -222,184 +213,242 @@ export default function CategoriesPage() {
             </Button>
             <Button onClick={handleNewCategory}>
               <Plus className="mr-2 h-4 w-4" />
-              New Category
+              Add Category
             </Button>
           </div>
         </div>
 
-        {/* Filters */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Filters</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search categories..." 
-                    className="pl-8" 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+        <div className="space-y-6">
+          {/* Quick Stats */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <FolderOpen className="h-5 w-5 text-blue-600" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Categories</p>
+                    <p className="text-2xl font-bold">{categoryStats.total}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <Tags className="h-5 w-5 text-green-600" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Subcategories</p>
+                    <p className="text-2xl font-bold">{subcategoryStats.total}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <Package className="h-5 w-5 text-purple-600" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Products</p>
+                    <p className="text-2xl font-bold">{categoryStats.totalProducts}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-orange-600" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Active</p>
+                    <p className="text-2xl font-bold">{categoryStats.active}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Main Categories List */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Categories</CardTitle>
+                  <CardDescription>
+                    Manage your product categories and subcategories
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search categories..."
+                      className="pl-8 w-64"
+                    />
+                  </div>
+                  <Button onClick={() => handleNewCategory()}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Category
+                  </Button>
                 </div>
               </div>
-              <Select 
-                value={statusFilter} 
-                onValueChange={setStatusFilter}
-              >
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {categories.map((category) => (
+                  <div key={category.id} className="border rounded-lg">
+                    {/* Category Row */}
+                    <div className="flex items-center justify-between p-4 hover:bg-muted/50">
+                      <div className="flex items-center gap-3">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={() => toggleCategory(category.id)}
+                        >
+                          {expandedCategories.has(category.id) ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <FolderOpen className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{category.name}</p>
+                            <p className="text-sm text-muted-foreground">{category.slug}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Badge variant={category.is_active ? "default" : "secondary"}>
+                          {category.is_active ? "Active" : "Inactive"}
+                        </Badge>
+                        <div className="text-sm text-muted-foreground">
+                          {getSubcategories(category.id).length} subcategories
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {category.products_count} products
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditCategory(category)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleNewSubcategory(category.id)}>
+                              <Plus className="mr-2 h-4 w-4" />
+                              Add Subcategory
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleViewCategory(category.id)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Products
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteClick(category)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
 
-        {/* Categories List */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Categories</CardTitle>
-            <CardDescription>
-              Manage product categories and their hierarchies
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {categoriesList.loading ? (
-              <div className="py-8">
-                <Loading size="md" text="Loading categories..." />
-              </div>
-            ) : categoriesList.error ? (
-              <div className="flex justify-center items-center py-8 text-destructive">
-                <p>{categoriesList.error.message}</p>
-              </div>
-            ) : categoriesList.items.length === 0 ? (
-              <EmptyState
-                icon={FolderOpen}
-                title="No categories found"
-                description={
-                  searchQuery || statusFilter !== "all"
-                    ? "Try adjusting your search or filters"
-                    : "Create your first category to organize your products"
-                }
-                actionLabel="Create Category"
-                onAction={handleNewCategory}
-              />
-            ) : (
-              <>
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Parent Category</TableHead>
-                        <TableHead>Products</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Created</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {categoriesList.items.map((category) => (
-                        <TableRow key={category.id}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-10 h-10 bg-muted rounded-md flex items-center justify-center">
-                                <FolderOpen className="h-5 w-5" />
+                    {/* Subcategories */}
+                    {expandedCategories.has(category.id) && (
+                      <div className="border-t bg-muted/20">
+                        <div className="p-4 space-y-2">
+                          {getSubcategories(category.id).map((subcategory) => (
+                            <div key={subcategory.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                              <div className="flex items-center gap-3">
+                                <div className="w-2 h-8 bg-muted-foreground/20 rounded-full"></div>
+                                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                                  <Tags className="h-4 w-4 text-green-600" />
+                                </div>
+                                <div>
+                                  <p className="font-medium">{subcategory.name}</p>
+                                  <p className="text-sm text-muted-foreground">{subcategory.slug}</p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="font-medium">{category.name}</p>
-                                <p className="text-sm text-muted-foreground">{category.slug}</p>
+                              <div className="flex items-center gap-3">
+                                <Badge variant={subcategory.is_active ? "default" : "secondary"}>
+                                  {subcategory.is_active ? "Active" : "Inactive"}
+                                </Badge>
+                                <div className="text-sm text-muted-foreground">
+                                  {subcategory.products_count} products
+                                </div>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleEditSubcategory(subcategory)}>
+                                      <Edit className="mr-2 h-4 w-4" />
+                                      Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleViewCategory(subcategory.category_id)}>
+                                      <Eye className="mr-2 h-4 w-4" />
+                                      View Products
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={() => handleDeleteSubcategoryClick(subcategory)}
+                                      className="text-red-600"
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            {getParentCategoryName(category.parent_id)}
-                          </TableCell>
-                          <TableCell>{category.products_count}</TableCell>
-                          <TableCell>
-                            {category.is_active ? (
-                              <Badge className="bg-green-100 text-green-800">Active</Badge>
-                            ) : (
-                              <Badge variant="secondary">Inactive</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {new Date(category.created_at).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => handleViewCategory(category.id)}>
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  View
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleEditCategory(category)}>
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem 
-                                  className="text-red-600"
-                                  onClick={() => handleDeleteClick(category)}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                {/* Pagination */}
-                {categoriesList.pagination.total_pages > 1 && (
-                  <div className="flex items-center justify-between mt-4">
-                    <p className="text-sm text-muted-foreground">
-                      Showing {categoriesList.items.length} of {categoriesList.pagination.total_items} categories
-                    </p>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => categoriesList.goToPage(categoriesList.pagination.current_page - 1)}
-                        disabled={categoriesList.pagination.current_page === 1}
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <p className="text-sm">
-                        Page {categoriesList.pagination.current_page} of {categoriesList.pagination.total_pages}
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => categoriesList.goToPage(categoriesList.pagination.current_page + 1)}
-                        disabled={categoriesList.pagination.current_page === categoriesList.pagination.total_pages}
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
+                          ))}
+                          {getSubcategories(category.id).length === 0 && (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <Tags className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                              <p>No subcategories yet</p>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="mt-2"
+                                onClick={() => handleNewSubcategory(category.id)}
+                              >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add Subcategory
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {categories.length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <FolderOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg mb-2">No categories yet</p>
+                    <p className="mb-4">Start by creating your first category</p>
+                    <Button onClick={() => handleNewCategory()}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Category
+                    </Button>
                   </div>
                 )}
-              </>
-            )}
-          </CardContent>
-        </Card>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Category Form Modal */}
@@ -407,48 +456,10 @@ export default function CategoriesPage() {
         open={categoryModalOpen}
         onOpenChange={setCategoryModalOpen}
         category={currentCategory}
+        subcategory={currentSubcategory}
         categories={categoriesList.items}
         onSuccess={handleFormSuccess}
       />
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the
-              category "{categoryToDelete?.name}" and remove it from the database.
-              {categoryToDelete && categoryToDelete.products_count > 0 && (
-                <p className="mt-2 text-red-500">
-                  Warning: This category contains {categoryToDelete.products_count} products.
-                  Deleting it may affect these products.
-                </p>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault()
-                confirmDelete()
-              }}
-              disabled={loading}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </SidebarInset>
   )
 } 

@@ -1,4 +1,7 @@
 // Base API service with authentication and error handling
+// TEST SERVICE: This is a mock API service for development and testing
+// In production, this would connect to your actual backend API
+// Currently configured for localStorage integration via Memory Bank
 export interface ApiConfig {
   baseUrl: string
   timeout: number
@@ -217,5 +220,8 @@ class ApiService {
 }
 
 // Export singleton instance
+// TEST SERVICE: This singleton is ready for production API integration
+// When you connect to a real backend, simply update the baseUrl configuration
+// and remove the localStorage-based Memory Bank system
 export const apiService = new ApiService()
 export default apiService 

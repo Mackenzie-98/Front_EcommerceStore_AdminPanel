@@ -245,12 +245,11 @@ export default function SettingsPage() {
         </div>
 
         <Tabs defaultValue="general" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="payments">Pagos</TabsTrigger>
             <TabsTrigger value="shipping">Envíos</TabsTrigger>
             <TabsTrigger value="notifications">Notificaciones</TabsTrigger>
-            <TabsTrigger value="security">Seguridad</TabsTrigger>
             <TabsTrigger value="users">Usuarios</TabsTrigger>
           </TabsList>
 
@@ -540,74 +539,7 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="security" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Shield className="mr-2 h-5 w-5" />
-                  Configuración de Seguridad
-                </CardTitle>
-                <CardDescription>Ajustes de seguridad y privacidad</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Autenticación de Dos Factores</Label>
-                      <p className="text-sm text-muted-foreground">Requerir 2FA para administradores</p>
-                    </div>
-                    <Switch />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Forzar HTTPS</Label>
-                      <p className="text-sm text-muted-foreground">Redirigir todo el tráfico a HTTPS</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>Registro de Actividad</Label>
-                      <p className="text-sm text-muted-foreground">Guardar logs de acciones administrativas</p>
-                    </div>
-                    <Switch defaultChecked />
-                  </div>
-                </div>
-                <Separator />
-                <div className="space-y-4">
-                  <h4 className="font-medium">Políticas de Contraseña</h4>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="min-password-length">Longitud Mínima</Label>
-                      <Input id="min-password-length" defaultValue="8" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="password-expiry">Expiración (días)</Label>
-                      <Input id="password-expiry" defaultValue="90" />
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label>Requerir Mayúsculas</Label>
-                      <Switch defaultChecked />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label>Requerir Números</Label>
-                      <Switch defaultChecked />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label>Requerir Símbolos Especiales</Label>
-                      <Switch />
-                    </div>
-                  </div>
-                </div>
-                <Button>
-                  <Save className="mr-2 h-4 w-4" />
-                  Guardar Configuración
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
+
 
           <TabsContent value="users" className="space-y-4">
             <Card>

@@ -44,90 +44,13 @@ import {
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { CustomerFormModal } from "@/components/customers/customer-form-modal"
+import { useMemoryBank } from "@/lib/memory-bank/context"
+import { Customer } from "@/lib/types"
 
-// Datos simulados basados en GET /api/v1/admin/users
-const customers = [
-  {
-    id: "1",
-    name: "Ana García",
-    email: "ana@example.com",
-    phone: "+34 600 123 456",
-    total_orders: 12,
-    total_spent: 2340.5,
-    avg_order_value: 195.04,
-    last_order: "2024-01-15",
-    created_at: "2023-06-15",
-    status: "active",
-    segment: "vip",
-    location: "Madrid, España",
-  },
-  {
-    id: "2",
-    name: "Carlos López",
-    email: "carlos@example.com",
-    phone: "+34 600 234 567",
-    total_orders: 5,
-    total_spent: 890.0,
-    avg_order_value: 178.0,
-    last_order: "2024-01-10",
-    created_at: "2023-11-20",
-    status: "active",
-    segment: "regular",
-    location: "Barcelona, España",
-  },
-  {
-    id: "3",
-    name: "María Rodríguez",
-    email: "maria@example.com",
-    phone: "+34 600 345 678",
-    total_orders: 2,
-    total_spent: 156.99,
-    avg_order_value: 78.5,
-    last_order: "2024-01-08",
-    created_at: "2024-01-01",
-    status: "active",
-    segment: "new",
-    location: "Valencia, España",
-  },
-  {
-    id: "4",
-    name: "Juan Martín",
-    email: "juan@example.com",
-    phone: "+34 600 456 789",
-    total_orders: 8,
-    total_spent: 1567.8,
-    avg_order_value: 195.98,
-    last_order: "2023-12-20",
-    created_at: "2023-08-10",
-    status: "inactive",
-    segment: "regular",
-    location: "Sevilla, España",
-  },
-  {
-    id: "5",
-    name: "Laura Sánchez",
-    email: "laura@example.com",
-    phone: "+34 600 567 890",
-    total_orders: 15,
-    total_spent: 3456.2,
-    avg_order_value: 230.41,
-    last_order: "2024-01-12",
-    created_at: "2023-03-22",
-    status: "active",
-    segment: "vip",
-    location: "Bilbao, España",
-  },
-]
-
-const customerSegments = [
-  { name: "Nuevos", count: 1, percentage: 20, color: "bg-blue-100 text-blue-800" },
-  { name: "Regulares", count: 2, percentage: 40, color: "bg-green-100 text-green-800" },
-  { name: "VIP", count: 2, percentage: 40, color: "bg-purple-100 text-purple-800" },
-]
-
-function CustomersTable({ onRefresh }: { onRefresh: () => void }) {
+function CustomersTable({ customers, onRefresh }: { customers: Customer[], onRefresh: () => void }) {
   const router = useRouter()
   const { toast } = useToast()
+  const memoryBank = useMemoryBank()
 
   const getStatusBadge = (status: string) => {
     return status === "active" ? (
@@ -158,7 +81,8 @@ function CustomersTable({ onRefresh }: { onRefresh: () => void }) {
 
   const handleToggleStatus = async (customerId: string, currentStatus: string) => {
     try {
-      // In a real app, this would be a fetch to your API
+      // TEST SERVICE: Using localStorage via Memory Bank for development
+      // In production, this would be a fetch to your API:
       // const response = await fetch(`/api/v1/admin/users/${customerId}`, {
       //   method: "PUT",
       //   headers: {
@@ -169,9 +93,10 @@ function CustomersTable({ onRefresh }: { onRefresh: () => void }) {
       //   }),
       // })
       
-      // if (!response.ok) {
-      //   throw new Error("Error al actualizar el estado del cliente")
-      // }
+      const newStatus = currentStatus === "active" ? "inactive" : "active"
+      await memoryBank.update('customers', customerId, { 
+        status: newStatus as "active" | "inactive" | "blocked"
+      })
 
       // Show success toast
       toast({
@@ -230,7 +155,7 @@ function CustomersTable({ onRefresh }: { onRefresh: () => void }) {
                 </div>
               </TableCell>
               <TableCell className="font-medium">€{customer.total_spent.toFixed(2)}</TableCell>
-              <TableCell className="text-sm">{formatDate(customer.last_order)}</TableCell>
+              <TableCell className="text-sm">{customer.last_order ? formatDate(customer.last_order) : "N/A"}</TableCell>
               <TableCell>{getSegmentBadge(customer.segment)}</TableCell>
               <TableCell>{getStatusBadge(customer.status)}</TableCell>
               <TableCell className="text-right">
@@ -286,13 +211,54 @@ function CustomersTable({ onRefresh }: { onRefresh: () => void }) {
 export default function CustomersPage() {
   const [customerModalOpen, setCustomerModalOpen] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedSegment, setSelectedSegment] = useState("all")
+  const [selectedStatus, setSelectedStatus] = useState("all")
   
-  // In a real app, this would be fetched from the API using SWR or React Query
-  // For now, we'll use the mock data
-  const totalCustomers = customers.length
-  const activeCustomers = customers.filter((c) => c.status === "active").length
-  const totalRevenue = customers.reduce((sum, c) => sum + c.total_spent, 0)
-  const avgOrderValue = customers.reduce((sum, c) => sum + c.avg_order_value, 0) / customers.length
+  // TEST SERVICE: Using Memory Bank for local development
+  // In production, this would be API calls to your backend
+  const { state: memoryBankState } = useMemoryBank()
+  const allCustomers = memoryBankState.customers || []
+  
+  // Filter customers based on search and filters
+  const filteredCustomers = allCustomers.filter((customer) => {
+    const matchesSearch = customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         customer.phone?.toLowerCase().includes(searchQuery.toLowerCase()) || false
+    
+    const matchesSegment = selectedSegment === "all" || customer.segment === selectedSegment
+    const matchesStatus = selectedStatus === "all" || customer.status === selectedStatus
+    
+    return matchesSearch && matchesSegment && matchesStatus
+  })
+  
+  const customers = filteredCustomers
+  const totalCustomers = allCustomers.length
+  const activeCustomers = allCustomers.filter((c) => c.status === "active").length
+  const totalRevenue = allCustomers.reduce((sum, c) => sum + c.total_spent, 0)
+  const avgOrderValue = allCustomers.reduce((sum, c) => sum + c.avg_order_value, 0) / allCustomers.length || 0
+  
+  // Calculate customer segments
+  const customerSegments = [
+    { 
+      name: "Nuevos", 
+      count: allCustomers.filter(c => c.segment === "new").length,
+      percentage: Math.round((allCustomers.filter(c => c.segment === "new").length / totalCustomers) * 100) || 0,
+      color: "bg-blue-100 text-blue-800" 
+    },
+    { 
+      name: "Regulares", 
+      count: allCustomers.filter(c => c.segment === "regular").length,
+      percentage: Math.round((allCustomers.filter(c => c.segment === "regular").length / totalCustomers) * 100) || 0,
+      color: "bg-green-100 text-green-800" 
+    },
+    { 
+      name: "VIP", 
+      count: allCustomers.filter(c => c.segment === "vip").length,
+      percentage: Math.round((allCustomers.filter(c => c.segment === "vip").length / totalCustomers) * 100) || 0,
+      color: "bg-purple-100 text-purple-800" 
+    },
+  ]
 
   // Function to refresh the customers list
   const refreshCustomers = () => {
@@ -333,7 +299,7 @@ export default function CustomersPage() {
           </Button>
         </div>
 
-        {/* Estadísticas rápidas */}
+        {/* Estadísticas rápidas - TEST SERVICE: Real-time calculations with localStorage */}
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -396,10 +362,15 @@ export default function CustomersPage() {
                   <div className="flex-1">
                     <div className="relative">
                       <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input placeholder="Buscar por nombre o email..." className="pl-8" />
+                      <Input 
+                        placeholder="Buscar por nombre o email..." 
+                        className="pl-8"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
                     </div>
                   </div>
-                  <Select defaultValue="all">
+                  <Select value={selectedSegment} onValueChange={setSelectedSegment}>
                     <SelectTrigger className="w-full sm:w-[180px]">
                       <SelectValue placeholder="Segmento" />
                     </SelectTrigger>
@@ -410,7 +381,7 @@ export default function CustomersPage() {
                       <SelectItem value="vip">VIP</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Select defaultValue="all">
+                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                     <SelectTrigger className="w-full sm:w-[180px]">
                       <SelectValue placeholder="Estado" />
                     </SelectTrigger>
@@ -420,9 +391,13 @@ export default function CustomersPage() {
                       <SelectItem value="inactive">Inactivos</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button variant="outline">
+                  <Button variant="outline" onClick={() => {
+                    setSearchQuery("")
+                    setSelectedSegment("all")
+                    setSelectedStatus("all")
+                  }}>
                     <Filter className="mr-2 h-4 w-4" />
-                    Más filtros
+                    Limpiar filtros
                   </Button>
                 </div>
               </CardContent>
@@ -431,10 +406,33 @@ export default function CustomersPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Lista de Clientes</CardTitle>
-                <CardDescription>Gestiona todos los clientes registrados</CardDescription>
+                <CardDescription>
+                  Gestiona todos los clientes registrados.
+                  {customers.length !== allCustomers.length && (
+                    <span className="text-muted-foreground">
+                      {" "}Mostrando {customers.length} de {allCustomers.length} clientes
+                    </span>
+                  )}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <CustomersTable onRefresh={refreshCustomers} />
+                {customers.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-lg text-muted-foreground">No customers found</p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {searchQuery || selectedSegment !== "all" || selectedStatus !== "all"
+                        ? "Try adjusting your search or filters"
+                        : "Get started by adding your first customer"}
+                    </p>
+                    <Button onClick={() => setCustomerModalOpen(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Customer
+                    </Button>
+                  </div>
+                ) : (
+                  <CustomersTable customers={customers} onRefresh={refreshCustomers} />
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -502,7 +500,7 @@ export default function CustomersPage() {
         </Tabs>
       </div>
 
-      {/* Customer Form Modal */}
+      {/* Customer Form Modal - TEST SERVICE: localStorage integration */}
       <CustomerFormModal 
         open={customerModalOpen} 
         onOpenChange={setCustomerModalOpen} 

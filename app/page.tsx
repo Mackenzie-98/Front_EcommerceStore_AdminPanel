@@ -1,19 +1,11 @@
+"use client"
+
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import dynamic from 'next/dynamic'
+import { DynamicSalesChart, DynamicCustomerSegmentationChart } from "@/components/ui/simple-dynamic-chart"
 
-// Dynamic imports for chart components (client-side only)
-const SalesChart = dynamic(
-  () => import('@/components/dashboard/sales-chart').then(m => m.SalesChart),
-  { ssr: false }
-)
-
-const CustomerSegmentationChart = dynamic(
-  () => import('@/components/dashboard/customer-segmentation-chart').then(m => m.CustomerSegmentationChart),
-  { ssr: false }
-)
 import {
   TrendingUp,
   TrendingDown,
@@ -54,9 +46,10 @@ const topProducts = [
 ]
 
 const customerSegments = [
-  { name: "New", value: 35, color: "#8884d8" },
-  { name: "Returning", value: 45, color: "#82ca9d" },
-  { name: "VIP", value: 20, color: "#ffc658" },
+  { name: "18-25 años", value: 25, color: "#8884d8" },
+  { name: "26-35 años", value: 35, color: "#82ca9d" },
+  { name: "36-45 años", value: 28, color: "#ffc658" },
+  { name: "46+ años", value: 12, color: "#ff7300" },
 ]
 
 const recentOrders = [
@@ -207,7 +200,7 @@ export default function Dashboard() {
           </BreadcrumbList>
         </Breadcrumb>
         <div className="ml-auto flex items-center space-x-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => window.open('https://overup.store', '_blank')}>
             <Eye className="mr-2 h-4 w-4" />
             View Store
           </Button>
@@ -264,17 +257,17 @@ export default function Dashboard() {
               <CardDescription>Monthly sales performance</CardDescription>
             </CardHeader>
             <CardContent className="pl-2">
-              <SalesChart data={salesData} config={chartConfig} />
+              <DynamicSalesChart data={salesData} config={chartConfig} />
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
               <CardTitle>Customer Distribution</CardTitle>
-              <CardDescription>Customer segments</CardDescription>
+              <CardDescription>Distribución por grupos de edad</CardDescription>
             </CardHeader>
-            <CardContent>
-              <CustomerSegmentationChart data={customerSegments} config={chartConfig} />
+            <CardContent className="flex justify-center items-center">
+              <DynamicCustomerSegmentationChart data={customerSegments} config={chartConfig} />
             </CardContent>
           </Card>
         </div>

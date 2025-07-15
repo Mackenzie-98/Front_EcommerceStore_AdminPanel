@@ -39,78 +39,12 @@ import {
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { StockAdjustmentModal } from "@/components/inventory/stock-adjustment-modal"
+import { useMemoryBank } from "@/lib/memory-bank/context"
+import { InventoryItem } from "@/lib/types"
 
-// Mock data based on GET /api/v1/admin/inventory
-const inventoryItems = [
-  {
-    id: "1",
-    sku: "IPH15P-256-BLK",
-    name: "iPhone 15 Pro 256GB Black",
-    current_stock: 45,
-    reserved_stock: 5,
-    available_stock: 40,
-    low_stock_threshold: 10,
-    cost: 899.0,
-    value: 40455.0,
-    last_updated: "2024-01-15T10:30:00Z",
-    location: "A1-B2-C3",
-  },
-  {
-    id: "2",
-    sku: "MBA-M2-512-SLV",
-    name: "MacBook Air M2 512GB Silver",
-    current_stock: 23,
-    reserved_stock: 2,
-    available_stock: 21,
-    low_stock_threshold: 5,
-    cost: 1199.0,
-    value: 27577.0,
-    last_updated: "2024-01-14T16:45:00Z",
-    location: "A2-B1-C1",
-  },
-  {
-    id: "3",
-    sku: "APP-PRO-WHT",
-    name: "AirPods Pro 2nd Gen White",
-    current_stock: 156,
-    reserved_stock: 12,
-    available_stock: 144,
-    low_stock_threshold: 20,
-    cost: 199.0,
-    value: 31044.0,
-    last_updated: "2024-01-15T09:15:00Z",
-    location: "B1-A3-C2",
-  },
-  {
-    id: "4",
-    sku: "IPD-AIR-128-BLU",
-    name: "iPad Air 128GB Blue",
-    current_stock: 8,
-    reserved_stock: 3,
-    available_stock: 5,
-    low_stock_threshold: 15,
-    cost: 499.0,
-    value: 3992.0,
-    last_updated: "2024-01-13T14:20:00Z",
-    location: "A1-B3-C1",
-  },
-  {
-    id: "5",
-    sku: "AWS-S9-45-RED",
-    name: "Apple Watch Series 9 45mm Red",
-    current_stock: 3,
-    reserved_stock: 1,
-    available_stock: 2,
-    low_stock_threshold: 10,
-    cost: 329.0,
-    value: 987.0,
-    last_updated: "2024-01-12T11:10:00Z",
-    location: "B2-A1-C3",
-  },
-]
-
-function InventoryTable({ onRefresh }: { onRefresh: () => void }) {
+function InventoryTable({ items, onRefresh }: { items: InventoryItem[], onRefresh: () => void }) {
   const { toast } = useToast()
+  const memoryBank = useMemoryBank()
   const getStockStatus = (current: number, threshold: number) => {
     if (current === 0) {
       return <Badge variant="destructive">Out of Stock</Badge>
@@ -145,7 +79,7 @@ function InventoryTable({ onRefresh }: { onRefresh: () => void }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {inventoryItems.map((item) => (
+          {items.map((item) => (
             <TableRow key={item.id}>
               <TableCell className="font-medium">
                 <div className="flex items-center space-x-3">
@@ -154,7 +88,7 @@ function InventoryTable({ onRefresh }: { onRefresh: () => void }) {
                   </div>
                   <div>
                     <p className="font-medium">{item.name}</p>
-                    <p className="text-sm text-muted-foreground">Updated: {formatDate(item.last_updated)}</p>
+                    <p className="text-sm text-muted-foreground">Updated: {formatDate(item.updated_at)}</p>
                   </div>
                 </div>
               </TableCell>
@@ -178,30 +112,79 @@ function InventoryTable({ onRefresh }: { onRefresh: () => void }) {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={() => {
-                      toast({
-                        title: "Feature not implemented",
-                        description: "Please use the Stock Adjustment button at the top of the page",
-                      })
+                    <DropdownMenuItem onClick={async () => {
+                      // TEST SERVICE: Quick stock adjustment via localStorage
+                      try {
+                        const newStock = item.current_stock + 10
+                        await memoryBank.update('inventory', item.id, { 
+                          current_stock: newStock,
+                          available_stock: newStock - item.reserved_stock,
+                          value: newStock * item.cost,
+                          updated_at: new Date().toISOString()
+                        })
+                        toast({
+                          title: "Stock updated",
+                          description: `Added 10 units to ${item.name}`,
+                        })
+                        onRefresh()
+                      } catch (error) {
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description: "Failed to update stock",
+                        })
+                      }
                     }}>
                       <Plus className="mr-2 h-4 w-4" />
-                      Add stock
+                      Add stock (+10)
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => {
-                      toast({
-                        title: "Feature not implemented",
-                        description: "Please use the Stock Adjustment button at the top of the page",
-                      })
+                    <DropdownMenuItem onClick={async () => {
+                      // TEST SERVICE: Quick stock reduction via localStorage
+                      try {
+                        const newStock = Math.max(0, item.current_stock - 5)
+                        await memoryBank.update('inventory', item.id, { 
+                          current_stock: newStock,
+                          available_stock: Math.max(0, newStock - item.reserved_stock),
+                          value: newStock * item.cost,
+                          updated_at: new Date().toISOString()
+                        })
+                        toast({
+                          title: "Stock updated",
+                          description: `Reduced 5 units from ${item.name}`,
+                        })
+                        onRefresh()
+                      } catch (error) {
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description: "Failed to update stock",
+                        })
+                      }
                     }}>
                       <Minus className="mr-2 h-4 w-4" />
-                      Reduce stock
+                      Reduce stock (-5)
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => {
-                      toast({
-                        title: "Feature not implemented",
-                        description: "This feature will be available soon",
-                      })
+                    <DropdownMenuItem onClick={async () => {
+                      // TEST SERVICE: Adjust threshold via localStorage
+                      try {
+                        const newThreshold = item.low_stock_threshold === 10 ? 20 : 10
+                        await memoryBank.update('inventory', item.id, { 
+                          low_stock_threshold: newThreshold,
+                          updated_at: new Date().toISOString()
+                        })
+                        toast({
+                          title: "Threshold updated",
+                          description: `Low stock threshold set to ${newThreshold}`,
+                        })
+                        onRefresh()
+                      } catch (error) {
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description: "Failed to update threshold",
+                        })
+                      }
                     }}>
                       <AlertTriangle className="mr-2 h-4 w-4" />
                       Adjust threshold
@@ -220,11 +203,37 @@ function InventoryTable({ onRefresh }: { onRefresh: () => void }) {
 export default function InventoryPage() {
   const [stockAdjustmentModalOpen, setStockAdjustmentModalOpen] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedStatus, setSelectedStatus] = useState("all")
+  const [selectedLocation, setSelectedLocation] = useState("all")
   
-  const totalValue = inventoryItems.reduce((sum, item) => sum + item.value, 0)
-  const lowStockItems = inventoryItems.filter((item) => item.current_stock <= item.low_stock_threshold).length
-  const outOfStockItems = inventoryItems.filter((item) => item.current_stock === 0).length
-  const totalItems = inventoryItems.reduce((sum, item) => sum + item.current_stock, 0)
+  // TEST SERVICE: Using Memory Bank for local development
+  // In production, this would be API calls to your backend
+  const { state: memoryBankState } = useMemoryBank()
+  const allInventoryItems = memoryBankState.inventory || []
+  
+  // Filter inventory items based on search and filters
+  const filteredItems = allInventoryItems.filter((item) => {
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         item.sku.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    const matchesStatus = selectedStatus === "all" ||
+                         (selectedStatus === "in_stock" && item.current_stock > item.low_stock_threshold) ||
+                         (selectedStatus === "low_stock" && item.current_stock <= item.low_stock_threshold && item.current_stock > 0) ||
+                         (selectedStatus === "out_of_stock" && item.current_stock === 0)
+    
+    const matchesLocation = selectedLocation === "all" ||
+                           item.location.includes(selectedLocation)
+    
+    return matchesSearch && matchesStatus && matchesLocation
+  })
+  
+  const inventoryItems = filteredItems
+  
+  const totalValue = allInventoryItems.reduce((sum: number, item: InventoryItem) => sum + item.value, 0)
+  const lowStockItems = allInventoryItems.filter((item: InventoryItem) => item.current_stock <= item.low_stock_threshold).length
+  const outOfStockItems = allInventoryItems.filter((item: InventoryItem) => item.current_stock === 0).length
+  const totalItems = allInventoryItems.reduce((sum: number, item: InventoryItem) => sum + item.current_stock, 0)
 
   // Function to refresh the inventory list
   const refreshInventory = () => {
@@ -277,10 +286,15 @@ export default function InventoryPage() {
               <div className="flex-1">
                 <div className="relative">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Search by SKU or name..." className="pl-8" />
+                  <Input 
+                    placeholder="Search by SKU or name..." 
+                    className="pl-8"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
                 </div>
               </div>
-              <Select defaultValue="all">
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
@@ -291,7 +305,7 @@ export default function InventoryPage() {
                   <SelectItem value="out_of_stock">Out of Stock</SelectItem>
                 </SelectContent>
               </Select>
-              <Select defaultValue="all">
+              <Select value={selectedLocation} onValueChange={setSelectedLocation}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Location" />
                 </SelectTrigger>
@@ -299,13 +313,21 @@ export default function InventoryPage() {
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="A1">Zone A1</SelectItem>
                   <SelectItem value="A2">Zone A2</SelectItem>
+                  <SelectItem value="A3">Zone A3</SelectItem>
                   <SelectItem value="B1">Zone B1</SelectItem>
                   <SelectItem value="B2">Zone B2</SelectItem>
+                  <SelectItem value="B3">Zone B3</SelectItem>
+                  <SelectItem value="C1">Zone C1</SelectItem>
+                  <SelectItem value="C2">Zone C2</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline">
+              <Button variant="outline" onClick={() => {
+                setSearchQuery("")
+                setSelectedStatus("all")
+                setSelectedLocation("all")
+              }}>
                 <Filter className="mr-2 h-4 w-4" />
-                More filters
+                Clear filters
               </Button>
             </div>
           </CardContent>
@@ -361,19 +383,42 @@ export default function InventoryPage() {
           </Card>
         </div>
 
-        {/* Inventory table */}
+        {/* Inventory table - TEST SERVICE: Real-time filtering with localStorage */}
         <Card>
           <CardHeader>
             <CardTitle>Inventory Management</CardTitle>
-            <CardDescription>Control stock for all your products</CardDescription>
+            <CardDescription>
+              Control stock for all your products. 
+              {inventoryItems.length !== allInventoryItems.length && (
+                <span className="text-muted-foreground">
+                  {" "}Showing {inventoryItems.length} of {allInventoryItems.length} items
+                </span>
+              )}
+            </CardDescription>
           </CardHeader>
               <CardContent>
-                <InventoryTable onRefresh={refreshInventory} />
+                {inventoryItems.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-lg text-muted-foreground">No inventory items found</p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {searchQuery || selectedStatus !== "all" || selectedLocation !== "all"
+                        ? "Try adjusting your search or filters"
+                        : "Get started by adding your first inventory item"}
+                    </p>
+                    <Button onClick={() => setStockAdjustmentModalOpen(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Stock
+                    </Button>
+                  </div>
+                ) : (
+                  <InventoryTable items={inventoryItems} onRefresh={refreshInventory} />
+                )}
               </CardContent>
         </Card>
       </div>
 
-      {/* Stock Adjustment Modal */}
+      {/* Stock Adjustment Modal - TEST SERVICE: localStorage integration */}
       <StockAdjustmentModal 
         open={stockAdjustmentModalOpen} 
         onOpenChange={setStockAdjustmentModalOpen} 

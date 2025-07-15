@@ -9,12 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useMemoryBank } from "@/lib/memory-bank/context"
-import { Category } from "@/lib/types"
+import { Category, Subcategory } from "@/lib/types"
 
 interface CategoryFormModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   category?: Category | null
+  subcategory?: Subcategory | null
   categories: Category[]
   onSuccess: () => void
 }
@@ -23,6 +24,7 @@ export function CategoryFormModal({
   open,
   onOpenChange,
   category,
+  subcategory,
   categories,
   onSuccess
 }: CategoryFormModalProps) {
@@ -34,12 +36,12 @@ export function CategoryFormModal({
     name: "",
     description: "",
     slug: "",
-    parent_id: "none",
+    category_id: "none",
     is_active: true,
     sort_order: 0
   })
 
-  // Reset form when modal opens/closes or category changes
+  // Reset form when modal opens/closes or category/subcategory changes
   useEffect(() => {
     if (open) {
       if (category) {
@@ -47,22 +49,31 @@ export function CategoryFormModal({
           name: category.name,
           description: category.description || "",
           slug: category.slug,
-          parent_id: category.parent_id || "none",
+          category_id: "none",
           is_active: category.is_active,
           sort_order: category.sort_order
+        })
+      } else if (subcategory) {
+        setFormData({
+          name: subcategory.name,
+          description: subcategory.description || "",
+          slug: subcategory.slug,
+          category_id: subcategory.category_id,
+          is_active: subcategory.is_active,
+          sort_order: subcategory.sort_order
         })
       } else {
         setFormData({
           name: "",
           description: "",
           slug: "",
-          parent_id: "none",
+          category_id: "none",
           is_active: true,
           sort_order: 0
         })
       }
     }
-  }, [open, category])
+  }, [open, category, subcategory])
 
   // Generate slug from name
   const generateSlug = (name: string) => {
@@ -87,30 +98,60 @@ export function CategoryFormModal({
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Category name is required"
+        description: `${subcategory ? "Subcategory" : "Category"} name is required`
       })
       return
     }
 
     setLoading(true)
     try {
-      const submitData = {
-        ...formData,
-        parent_id: formData.parent_id === "none" || !formData.parent_id ? undefined : formData.parent_id
-      }
-
       if (category) {
+        // Updating category
+        const submitData = {
+          ...formData,
+          category_id: undefined
+        }
         await memoryBank.categories.update(category.id, submitData)
         toast({
           title: "Success",
           description: "Category updated successfully"
         })
-      } else {
-        await memoryBank.categories.create(submitData)
+      } else if (subcategory) {
+        // Updating subcategory
+        const submitData = {
+          ...formData,
+          category_id: formData.category_id === "none" ? "" : formData.category_id
+        }
+        await memoryBank.categories.update(subcategory.id, submitData)
         toast({
-          title: "Success", 
-          description: "Category created successfully"
+          title: "Success",
+          description: "Subcategory updated successfully"
         })
+      } else {
+        // Creating new - determine if it's a category or subcategory based on category_id
+        if (formData.category_id === "none") {
+          // Creating new category
+          const submitData = {
+            ...formData,
+            category_id: undefined
+          }
+          await memoryBank.categories.create(submitData)
+          toast({
+            title: "Success", 
+            description: "Category created successfully"
+          })
+        } else {
+          // Creating new subcategory
+          const submitData = {
+            ...formData,
+            category_id: formData.category_id
+          }
+          await memoryBank.categories.create(submitData)
+          toast({
+            title: "Success", 
+            description: "Subcategory created successfully"
+          })
+        }
       }
 
       onSuccess()
@@ -118,7 +159,7 @@ export function CategoryFormModal({
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to save category"
+        description: `Failed to save ${subcategory ? "subcategory" : "category"}`
       })
     } finally {
       setLoading(false)
@@ -133,7 +174,7 @@ export function CategoryFormModal({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {category ? "Edit Category" : "Create Category"}
+            {category ? "Edit Category" : subcategory ? "Edit Subcategory" : "Create Category"}
           </DialogTitle>
         </DialogHeader>
         
@@ -172,16 +213,16 @@ export function CategoryFormModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="parent">Parent Category</Label>
+            <Label htmlFor="parent">{subcategory ? "Category" : "Parent Category"}</Label>
             <Select
-              value={formData.parent_id}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, parent_id: value }))}
+              value={formData.category_id}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, category_id: value }))}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select parent category (optional)" />
+                <SelectValue placeholder={subcategory ? "Select category" : "Select parent category (optional)"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">None</SelectItem>
+                {!subcategory && <SelectItem value="none">None</SelectItem>}
                 {parentOptions.map((cat) => (
                   <SelectItem key={cat.id} value={cat.id}>
                     {cat.name}

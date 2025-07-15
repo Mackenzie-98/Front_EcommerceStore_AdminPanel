@@ -14,6 +14,15 @@ interface SalesChartProps {
 }
 
 export function SalesChart({ data, config }: SalesChartProps) {
+  // Guard against null or undefined data
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    return (
+      <div className="h-[300px] flex items-center justify-center">
+        <p className="text-muted-foreground text-sm">No data available</p>
+      </div>
+    )
+  }
+
   return (
     <ChartContainer config={config} className="h-[300px]">
       <ResponsiveContainer width="100%" height="100%">

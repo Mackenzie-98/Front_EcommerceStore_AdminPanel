@@ -46,12 +46,23 @@ export interface Customer extends BaseEntity {
   notes?: string
 }
 
-// Product Category
+// Product Category and Subcategory
 export interface Category extends BaseEntity {
   name: string
   description?: string
   slug: string
-  parent_id?: string
+  image?: string
+  is_active: boolean
+  sort_order: number
+  products_count: number
+  subcategories?: Subcategory[]
+}
+
+export interface Subcategory extends BaseEntity {
+  name: string
+  description?: string
+  slug: string
+  category_id: string
   image?: string
   is_active: boolean
   sort_order: number
@@ -77,6 +88,8 @@ export interface Product extends BaseEntity {
   sku: string
   category_id: string
   category_name: string
+  subcategory_id?: string
+  subcategory_name?: string
   price: number
   cost: number
   stock: number
@@ -340,6 +353,7 @@ export interface MemoryBankState {
   customers: Customer[]
   orders: Order[]
   categories: Category[]
+  subcategories: Subcategory[]
   inventory: InventoryItem[]
   reviews: Review[]
   coupons: Coupon[]
